@@ -17,6 +17,7 @@ class EditorState(TypedDict):
     effect: Optional[Literal['glitch', 'distort', 'shadow']]
     small_subtitle: str
     subtitle: str
+    evil: bool
 
 def get_asset_path(path: str) -> str:
     """Get the correct path for assets, whether running as script or compiled binary"""
@@ -29,29 +30,39 @@ def get_asset_path(path: str) -> str:
     return os.path.join(base_path, path)
 
 def generate_title_card(state: EditorState, output_path: str = "output.png"):
+    # Set fixed dimensions for consistent sizing
+    WIDTH = 1920
+    HEIGHT = 1080
+    
     # Load background image (lossless PNG)
-    bg_path = get_asset_path(os.path.join('assets', 'background', 'blue.jpg'))  # Prefer PNG background
-    try:
-        if bg_path.endswith('.png'):
-            image = Image.open(bg_path).convert('RGBA')
-        else:
-            image = Image.open(bg_path).convert('RGB')
-    except FileNotFoundError:
-        print(f"Background image not found at {bg_path}. Using solid color.")
-        image = Image.new('RGBA', (1920, 1080), (0, 0, 139, 255))  # Dark blue fallback
+    if state.get('evil', False):
+        # Always use solid yellow background in evil mode
+        image = Image.new('RGBA', (WIDTH, HEIGHT), (254, 228, 91, 255))  # #fee45b
+    else:
+        bg_path = get_asset_path(os.path.join('assets', 'background', 'blue.jpg'))  # Prefer PNG background
+        try:
+            if bg_path.endswith('.png'):
+                image = Image.open(bg_path).convert('RGBA')
+            else:
+                image = Image.open(bg_path).convert('RGB')
+            # Ensure consistent image size
+            image = image.resize((WIDTH, HEIGHT), Image.Resampling.LANCZOS)
+        except FileNotFoundError:
+            print(f"Background image not found at {bg_path}. Using solid color.")
+            image = Image.new('RGBA', (WIDTH, HEIGHT), (0, 0, 139, 255))  # Dark blue fallback
     
     # Create a working canvas with alpha channel for title
-    title_canvas = Image.new('RGBA', image.size)
+    title_canvas = Image.new('RGBA', (WIDTH, HEIGHT))
     title_draw = ImageDraw.Draw(title_canvas)
     
     # Create a separate canvas for subtitles
-    subtitle_canvas = Image.new('RGBA', image.size)
+    subtitle_canvas = Image.new('RGBA', (WIDTH, HEIGHT))
     subtitle_draw = ImageDraw.Draw(subtitle_canvas)
     
     # Calculate appropriate font size for title
     font_path = get_asset_path(os.path.join('assets', 'fonts', 'woodblock.otf'))
-    max_width = image.width * 0.8  # Allow 80% of image width for text
-    title_font_size = calculate_font_size(state['text'], font_path, max_width, state['title_font_size'])
+    max_width = WIDTH * 0.8  # Allow 80% of image width for text
+    title_font_size = state['title_font_size']  # Use exact font size specified
     
     # Load fonts with anti-aliasing
     try:
@@ -80,7 +91,7 @@ def generate_title_card(state: EditorState, output_path: str = "output.png"):
     bbox = title_draw.textbbox((0, 0), title, font=title_font)
     title_width = bbox[2] - bbox[0]
     title_height = bbox[3] - bbox[1]
-    position = (image.width // 2 - title_width // 2, image.height // 2 - title_height // 2)
+    position = (WIDTH // 2 - title_width // 2, HEIGHT // 2 - title_height // 2)
     
     # Create outline by drawing multiple offset versions
     if state['outline'] > 0:
@@ -115,9 +126,9 @@ def generate_title_card(state: EditorState, output_path: str = "output.png"):
         small_height = small_bbox[3] - small_bbox[1]
         
         subtitle_draw.text(
-            (image.width // 2 - small_width // 2, position[1] + title_height * 0.8 + 50),
+            (WIDTH // 2 - small_width // 2, position[1] + title_height * 0.8 + 80),
             small_sub,
-            fill=(255, 255, 255, 255),  # White with full opacity
+            fill=title_color if state.get('evil', False) else (255, 255, 255, 255),  # Use title color in evil mode
             font=subtitle_font,
             anchor="lt"
         )
@@ -128,9 +139,9 @@ def generate_title_card(state: EditorState, output_path: str = "output.png"):
         sub_width = sub_bbox[2] - sub_bbox[0]
         
         subtitle_draw.text(
-            (image.width // 2 - sub_width // 2, position[1] + title_height * 0.8 + small_height * 1.5 + 60),
+            (WIDTH // 2 - sub_width // 2, position[1] + title_height * 0.8 + small_height * 1.5 + 90),
             sub,
-            fill=(255, 255, 255, 255),  # White with full opacity
+            fill=title_color if state.get('evil', False) else (255, 255, 255, 255),  # Use title color in evil mode
             font=subtitle_font,
             anchor="lt"
         )
@@ -171,10 +182,6 @@ def generate_title_card(state: EditorState, output_path: str = "output.png"):
     final_image = Image.alpha_composite(image, title_canvas)
     # Then composite the subtitles
     final_image = Image.alpha_composite(final_image, subtitle_canvas)
-    
-    # Apply effects in a lossless way when possible
-    if state['effect']:
-        final_image = apply_lossless_effect(final_image, state['effect'])
     
     # Save as lossless PNG
     final_image.save(output_path, format='PNG', compress_level=0)
@@ -224,56 +231,6 @@ def hex_to_rgba(hex_color: str, alpha: int = 255):
         hex_color = ''.join([c * 2 for c in hex_color])
     return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4)) + (alpha,)
 
-def apply_lossless_effect(image: Image.Image, effect_name: str) -> Image.Image:
-    """Apply effects while maintaining lossless quality where possible"""
-    if effect_name == 'glitch':
-        # Convert to array for pixel manipulation
-        arr = np.array(image)
-        height, width = arr.shape[:2]
-        
-        # Create glitch by shifting channels
-        glitch_arr = arr.copy()
-        shift = width // 20
-        glitch_arr[:, shift:, :3] = arr[:, :-shift, :3]  # Shift RGB channels
-        glitch_arr[:, :shift, 3] = arr[:, -shift:, 3]    # Preserve alpha
-        
-        return Image.fromarray(glitch_arr)
-    
-    elif effect_name == 'shadow':
-        # Create shadow with alpha channel
-        shadow = Image.new('RGBA', image.size, (0, 0, 0, 0))
-        shadow_draw = ImageDraw.Draw(shadow)
-        
-        # Draw a semi-transparent rectangle
-        shadow_draw.rectangle(
-            [50, 50, image.width-50, image.height-50],
-            fill=(0, 0, 0, 50)  # 50/255 opacity
-        )
-        
-        return Image.alpha_composite(image, shadow)
-    
-    elif effect_name == 'distort':
-        # Wave distortion using numpy for precision
-        arr = np.array(image)
-        height, width = arr.shape[:2]
-        
-        # Create wave distortion
-        x = np.arange(width)
-        y = np.arange(height)
-        xx, yy = np.meshgrid(x, y)
-        
-        # Apply sine wave distortion
-        wave = np.sin(yy / 30) * 10
-        distorted_x = np.clip(xx + wave.astype(int), 0, width-1)
-        
-        # Create new image with distortion
-        distorted_arr = arr.copy()
-        distorted_arr[yy, xx] = arr[yy, distorted_x]
-        
-        return Image.fromarray(distorted_arr)
-    
-    return image
-
 def main():
     parser = argparse.ArgumentParser(
         description='Generate a title card with customizable text, colors, and effects.',
@@ -290,9 +247,9 @@ def main():
                       help='Small subtitle text')
     
     # Font options
-    parser.add_argument('--title-font-size', type=int, default=300,
+    parser.add_argument('--title-font-size', type=int, default=470,
                       help='Font size for the main title')
-    parser.add_argument('--subtitle-font-size', type=int, default=30,
+    parser.add_argument('--subtitle-font-size', type=int, default=40,
                       help='Font size for the subtitles')
     
     # Color options
@@ -302,14 +259,12 @@ def main():
                       help='Outline color in hex format (e.g., #000000)')
     parser.add_argument('--outline', type=int, default=0,
                       help='Outline size in pixels')
+    parser.add_argument('--evil', action='store_true',
+                      help='Use evil color scheme (yellow background, dark gray text)')
     
     # Background options
     parser.add_argument('--background', type=str, default='blue.jpg',
                       help='Background image filename (must be in assets/background/)')
-    
-    # Effect options
-    parser.add_argument('--effect', type=str, choices=['glitch', 'distort', 'shadow', None], default=None,
-                      help='Special effect to apply to the title card')
     
     # Output options
     parser.add_argument('--output', type=str,
@@ -325,16 +280,16 @@ def main():
     # Convert args to EditorState
     state: EditorState = {
         "text": args.text,
-        "color": args.color,
+        "color": "#2f3336" if args.evil else args.color,  # Dark gray for evil mode
         "show_credits": args.show_credits,
         "background": f"url('/background/{args.background}')",
-        "title_font_size": args.title_font_size,
-        "subtitle_font_size": args.subtitle_font_size,
+        "title_font_size": args.title_font_size,  # Keep the same font size regardless of mode
+        "subtitle_font_size": args.subtitle_font_size,  # Keep the same font size regardless of mode
         "outline": args.outline,
         "outline_color": args.outline_color,
-        "effect": args.effect,
         "small_subtitle": args.small_subtitle,
         "subtitle": args.subtitle,
+        "evil": args.evil
     }
     
     # Generate the title card
