@@ -37,16 +37,18 @@ def generate_title_card(state: EditorState, output_path: str = "output.png"):
     subtitle_canvas = Image.new('RGBA', image.size)
     subtitle_draw = ImageDraw.Draw(subtitle_canvas)
     
+    # Calculate appropriate font size for title
+    font_path = os.path.join('assets', 'fonts', 'woodblock.otf')
+    max_width = image.width * 0.8  # Allow 80% of image width for text
+    title_font_size = calculate_font_size(state['text'], font_path, max_width, state['title_font_size'])
+    
     # Load fonts with anti-aliasing
     try:
-        title_font = ImageFont.truetype(
-            os.path.join('assets', 'fonts', 'woodblock.otf'), 
-            state['title_font_size']
-        )
+        title_font = ImageFont.truetype(font_path, title_font_size)
     except:
         print("Woodblock font not found. Using default font for title.")
         title_font = ImageFont.load_default()
-        title_font.size = state['title_font_size']
+        title_font.size = title_font_size
     
     try:
         subtitle_font = ImageFont.truetype(
@@ -179,6 +181,30 @@ def find_coeffs(pa, pb):
     
     res = np.dot(np.linalg.inv(A.T * A) * A.T, B)
     return np.array(res).reshape(8)
+
+def calculate_font_size(text: str, font_path: str, max_width: int, initial_size: int) -> int:
+    """Calculate the appropriate font size to fit text within max_width"""
+    font_size = initial_size
+    while True:
+        try:
+            font = ImageFont.truetype(font_path, font_size)
+        except:
+            font = ImageFont.load_default()
+            font.size = font_size
+            
+        # Create a temporary image to measure text
+        temp_image = Image.new('RGBA', (1, 1))
+        temp_draw = ImageDraw.Draw(temp_image)
+        bbox = temp_draw.textbbox((0, 0), text, font=font)
+        text_width = bbox[2] - bbox[0]
+        
+        if text_width <= max_width or font_size <= 20:  # Don't go smaller than 20px
+            break
+            
+        # Reduce font size by 10% each iteration
+        font_size = int(font_size * 0.9)
+    
+    return font_size
 
 def hex_to_rgba(hex_color: str, alpha: int = 255):
     """Convert hex color to RGBA tuple"""
