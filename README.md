@@ -1,6 +1,6 @@
-# Now You can Be Invisible too
+# \[Title Card\] Title Card Generator
 
-A Python script to generate Invincible title cards with customizable text, colors, and effects. Perfect for creating title screens, thumbnails, or promotional images.
+A Python script to generate \[Title Card\] title cards with customizable text, colors, and effects. Perfect for creating title screens, thumbnails, or promotional images.
 
 ## Features
 
@@ -20,22 +20,39 @@ A Python script to generate Invincible title cards with customizable text, color
 
 ## Installation
 
+### Option 1: Using Precompiled Binary (Recommended)
+
+1. Visit the [Releases](https://github.com/glitchmill/insoluble-py/releases) section of the repository.
+2. Download the appropriate binary for your system.
+3. Follow any additional instructions provided in the release notes (if applicable).
+
+### Option 2: Using Source (Requires Compilation)
+
+If you prefer to build the binary from source or want to use the script directly, follow these steps:
+
 1. Clone this repository:
-```bash
-git clone https://github.com/glitchmill/insoluble-py.git
-cd title-card-generator
-```
+   ```bash
+   git clone https://github.com/glitchmill/insoluble-py.git
+   cd insoluble-py
+   ```
 
 2. Install the required packages:
-```bash
-pip install -r requirements.txt
-```
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Compile the binary by running the following script:
+   ```bash
+   pyinstaller insoluble.spec
+   ```
+
+This will compile the binary, and you can then use it just like the precompiled version.
 
 ## Usage
 
 Basic usage:
 ```bash
-python app.py "YOUR TITLE"
+./insoluble "YOUR TITLE"
 ```
 
 This will generate a title card with your text and save it as `your-title.png`.
@@ -58,17 +75,17 @@ This will generate a title card with your text and save it as `your-title.png`.
 
 1. Basic title card:
 ```bash
-python app.py "Invisible"
+./insoluble "Invisible"
 ```
 
 2. Title card with subtitles and custom colors:
 ```bash
-python app.py "The Walking Dead" --show-credits --color "#ff0000" --outline 5
+./insoluble "The Walking Dead" --show-credits --color "#ff0000" --outline 5
 ```
 
 3. Title card with special effect:
 ```bash
-python app.py "Invincible" --effect glitch --background red.jpg
+./insoluble "Invincible" --effect glitch --background red.jpg
 ```
 
 ## File Structure
@@ -91,4 +108,5 @@ python app.py "Invincible" --effect glitch --background red.jpg
 
 ## License
 
-MIT License
+This app is Licensed under the Unlicense.
+[LICENSE](LICENSE)
