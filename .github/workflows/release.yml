@@ -35,8 +35,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # Permission to modify repository contents
-      actions: write    # Permission to perform actions like create release
+      contents: write
+      actions: write
     if: github.event_name == 'push'
 
     steps:
@@ -50,10 +50,10 @@ jobs:
       id: create_release
       uses: actions/create-release@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # This is your default GITHUB_TOKEN with updated permissions
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.sha }}
-        release_name: Release ${{ github.sha }}
+        tag_name: "v${{ github.run_number }}"  # Use a version-like tag
+        release_name: "Release v${{ github.run_number }}"
         draft: false
         prerelease: false
 
