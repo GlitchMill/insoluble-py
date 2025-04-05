@@ -102,7 +102,7 @@ def generate_title_card(state: EditorState, output_path: str = "output.png"):
         small_height = small_bbox[3] - small_bbox[1]
         
         subtitle_draw.text(
-            (image.width // 2 - small_width // 2, position[1] + title_height * 0.8 + 150),
+            (image.width // 2 - small_width // 2, position[1] + title_height * 0.8 + 50),
             small_sub,
             fill=(255, 255, 255, 255),  # White with full opacity
             font=subtitle_font,
@@ -115,7 +115,7 @@ def generate_title_card(state: EditorState, output_path: str = "output.png"):
         sub_width = sub_bbox[2] - sub_bbox[0]
         
         subtitle_draw.text(
-            (image.width // 2 - sub_width // 2, position[1] + title_height * 0.8 + small_height * 1.5 + 150),
+            (image.width // 2 - sub_width // 2, position[1] + title_height * 0.8 + small_height * 1.5 + 60),
             sub,
             fill=(255, 255, 255, 255),  # White with full opacity
             font=subtitle_font,
@@ -240,12 +240,13 @@ def apply_lossless_effect(image: Image.Image, effect_name: str) -> Image.Image:
 def main():
     parser = argparse.ArgumentParser(
         description='Generate a title card with customizable text, colors, and effects.',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        usage='%(prog)s "TITLE" [options]'
     )
     
     # Text options
-    parser.add_argument('--text', type=str, default='INSOLUBLE',
-                      help='Main title text')
+    parser.add_argument('text', type=str,
+                      help='Main title text (required)')
     parser.add_argument('--subtitle', type=str, default='Robert Kirkman, Cory Walker, & Ryan Ottley',
                       help='Main subtitle text')
     parser.add_argument('--small-subtitle', type=str, default='BASED ON THE COMIC BOOK BY',
@@ -274,12 +275,15 @@ def main():
                       help='Special effect to apply to the title card')
     
     # Output options
-    parser.add_argument('--output', type=str, default='output.png',
-                      help='Output filename')
+    parser.add_argument('--output', type=str,
+                      help='Output filename (defaults to TITLE.png)')
     parser.add_argument('--show-credits', action='store_true',
                       help='Show subtitle credits')
     
     args = parser.parse_args()
+    
+    # Use the text as the output filename if not specified
+    output_file = args.output if args.output else f"{args.text.lower()}.png"
     
     # Convert args to EditorState
     state: EditorState = {
@@ -297,7 +301,7 @@ def main():
     }
     
     # Generate the title card
-    generate_title_card(state, args.output)
+    generate_title_card(state, output_file)
 
 if __name__ == "__main__":
     main()
