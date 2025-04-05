@@ -3,3 +3,7 @@ in-venv/
 *.png
 
 *.jpg
+
+build/
+
+dist/

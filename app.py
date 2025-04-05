@@ -1,4 +1,5 @@
 import os
+import sys
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 from typing import Optional, Literal, TypedDict
 import numpy as np
@@ -17,9 +18,19 @@ class EditorState(TypedDict):
     small_subtitle: str
     subtitle: str
 
+def get_asset_path(path: str) -> str:
+    """Get the correct path for assets, whether running as script or compiled binary"""
+    if getattr(sys, 'frozen', False):
+        # Running as compiled binary
+        base_path = sys._MEIPASS
+    else:
+        # Running as script
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_path, path)
+
 def generate_title_card(state: EditorState, output_path: str = "output.png"):
     # Load background image (lossless PNG)
-    bg_path = os.path.join('assets', 'background', 'blue.jpg')  # Prefer PNG background
+    bg_path = get_asset_path(os.path.join('assets', 'background', 'blue.jpg'))  # Prefer PNG background
     try:
         if bg_path.endswith('.png'):
             image = Image.open(bg_path).convert('RGBA')
@@ -38,7 +49,7 @@ def generate_title_card(state: EditorState, output_path: str = "output.png"):
     subtitle_draw = ImageDraw.Draw(subtitle_canvas)
     
     # Calculate appropriate font size for title
-    font_path = os.path.join('assets', 'fonts', 'woodblock.otf')
+    font_path = get_asset_path(os.path.join('assets', 'fonts', 'woodblock.otf'))
     max_width = image.width * 0.8  # Allow 80% of image width for text
     title_font_size = calculate_font_size(state['text'], font_path, max_width, state['title_font_size'])
     
@@ -52,7 +63,7 @@ def generate_title_card(state: EditorState, output_path: str = "output.png"):
     
     try:
         subtitle_font = ImageFont.truetype(
-            os.path.join('assets', 'fonts', 'futura-medium.ttf'), 
+            get_asset_path(os.path.join('assets', 'fonts', 'futura-medium.ttf')), 
             state['subtitle_font_size']
         )
     except:
