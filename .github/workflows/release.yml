@@ -34,8 +34,7 @@ jobs:
       with:
         name: insoluble-${{ matrix.os }}
         path: |
-          dist/insoluble
-          dist/insoluble.exe
+          ${{ matrix.os == 'windows-latest' && 'dist/insoluble.exe' || 'dist/insoluble' }}
         if-no-files-found: error
 
   release:
