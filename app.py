@@ -2,6 +2,7 @@ import os
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 from typing import Optional, Literal, TypedDict
 import numpy as np
+import argparse
 
 class EditorState(TypedDict):
     text: str
@@ -117,6 +118,35 @@ def generate_title_card(state: EditorState, output_path: str = "output.png"):
             anchor="lt"
         )
     
+    # Apply perspective transformation to the text layer only
+    width, height = canvas.size
+    # Define the perspective points (bottom wider, top narrower)
+    # Original corners
+    top_left = (0, 0)
+    top_right = (width, 0)
+    bottom_left = (0, height)
+    bottom_right = (width, height)
+    
+    # New corners with perspective
+    perspective_top_left = (width * 0.1, 0)  # Move top left inward
+    perspective_top_right = (width * 0.9, 0)  # Move top right inward
+    perspective_bottom_left = (0, height)  # Keep bottom left
+    perspective_bottom_right = (width, height)  # Keep bottom right
+    
+    # Calculate the perspective transform
+    coeffs = find_coeffs(
+        [perspective_top_left, perspective_top_right, perspective_bottom_left, perspective_bottom_right],
+        [top_left, top_right, bottom_left, bottom_right]
+    )
+    
+    # Apply the perspective transform to the text layer
+    canvas = canvas.transform(
+        canvas.size,
+        Image.Transform.PERSPECTIVE,
+        coeffs,
+        Image.Resampling.BICUBIC
+    )
+    
     # Composite the text onto the background (lossless operation)
     if image.mode == 'RGB':
         image = image.convert('RGBA')
@@ -129,6 +159,19 @@ def generate_title_card(state: EditorState, output_path: str = "output.png"):
     # Save as lossless PNG
     final_image.save(output_path, format='PNG', compress_level=0)
     print(f"Lossless title card saved to {output_path}")
+
+def find_coeffs(pa, pb):
+    """Find coefficients for perspective transform"""
+    matrix = []
+    for p1, p2 in zip(pa, pb):
+        matrix.append([p1[0], p1[1], 1, 0, 0, 0, -p2[0]*p1[0], -p2[0]*p1[1]])
+        matrix.append([0, 0, 0, p1[0], p1[1], 1, -p2[1]*p1[0], -p2[1]*p1[1]])
+    
+    A = np.matrix(matrix, dtype=np.float64)
+    B = np.array(pb).reshape(8)
+    
+    res = np.dot(np.linalg.inv(A.T * A) * A.T, B)
+    return np.array(res).reshape(8)
 
 def hex_to_rgba(hex_color: str, alpha: int = 255):
     """Convert hex color to RGBA tuple"""
@@ -187,32 +230,67 @@ def apply_lossless_effect(image: Image.Image, effect_name: str) -> Image.Image:
     
     return image
 
-if __name__ == "__main__":
-    # Default state with lossless settings
-    default_state: EditorState = {
-        "text": "INSOLUBLE",
-        "color": "#ebed00",
-        "show_credits": False,
-        "background": "url('/background/blue.jpg')",  # Prefer PNG background
-        "title_font_size": 300,
-        "subtitle_font_size": 30,
-        "outline": 0,
-        "outline_color": "#000000",
-        "effect": None,
-        "small_subtitle": "BASED ON THE COMIC BOOK BY",
-        "subtitle": "Robert Kirkman, Cory Walker, & Ryan Ottley",
+def main():
+    parser = argparse.ArgumentParser(
+        description='Generate a title card with customizable text, colors, and effects.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    
+    # Text options
+    parser.add_argument('--text', type=str, default='INSOLUBLE',
+                      help='Main title text')
+    parser.add_argument('--subtitle', type=str, default='Robert Kirkman, Cory Walker, & Ryan Ottley',
+                      help='Main subtitle text')
+    parser.add_argument('--small-subtitle', type=str, default='BASED ON THE COMIC BOOK BY',
+                      help='Small subtitle text')
+    
+    # Font options
+    parser.add_argument('--title-font-size', type=int, default=300,
+                      help='Font size for the main title')
+    parser.add_argument('--subtitle-font-size', type=int, default=30,
+                      help='Font size for the subtitles')
+    
+    # Color options
+    parser.add_argument('--color', type=str, default='#ebed00',
+                      help='Text color in hex format (e.g., #ebed00)')
+    parser.add_argument('--outline-color', type=str, default='#000000',
+                      help='Outline color in hex format (e.g., #000000)')
+    parser.add_argument('--outline', type=int, default=0,
+                      help='Outline size in pixels')
+    
+    # Background options
+    parser.add_argument('--background', type=str, default='blue.jpg',
+                      help='Background image filename (must be in assets/background/)')
+    
+    # Effect options
+    parser.add_argument('--effect', type=str, choices=['glitch', 'distort', 'shadow', None], default=None,
+                      help='Special effect to apply to the title card')
+    
+    # Output options
+    parser.add_argument('--output', type=str, default='output.png',
+                      help='Output filename')
+    parser.add_argument('--show-credits', action='store_true',
+                      help='Show subtitle credits')
+    
+    args = parser.parse_args()
+    
+    # Convert args to EditorState
+    state: EditorState = {
+        "text": args.text,
+        "color": args.color,
+        "show_credits": args.show_credits,
+        "background": f"url('/background/{args.background}')",
+        "title_font_size": args.title_font_size,
+        "subtitle_font_size": args.subtitle_font_size,
+        "outline": args.outline,
+        "outline_color": args.outline_color,
+        "effect": args.effect,
+        "small_subtitle": args.small_subtitle,
+        "subtitle": args.subtitle,
     }
     
-    # Generate with default settings
-    generate_title_card(default_state)
-    
-    # # Example of custom generation with effects
-    # custom_state = default_state.copy()
-    # custom_state.update({
-    #     "text": "INVINCIBLE WAR",
-    #     "color": "#ff0000",
-    #     "title_font_size": 180,
-    #     "outline": 15,
-    #     "effect": "glitch"
-    # })
-    # generate_title_card(custom_state, "custom_output.png")
+    # Generate the title card
+    generate_title_card(state, args.output)
+
+if __name__ == "__main__":
+    main()
