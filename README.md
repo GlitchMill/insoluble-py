@@ -1,5 +1,7 @@
 # \[Title Card\] Title Card Generator
 
+![Logo](assets/logo.png)
+
 A Python script to generate \[Title Card\] title cards with customizable text, colors, and effects. Perfect for creating title screens, thumbnails, or promotional images.
 
 ## Features
@@ -50,6 +52,11 @@ This will compile the binary, and you can then use it just like the precompiled 
 
 ## Usage
 
+<video width="640" height="360" controls>
+  <source src="assets/demo.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+
 Basic usage:
 ```bash
 ./insoluble "YOUR TITLE"
@@ -98,13 +105,6 @@ This will generate a title card with your text and save it as `your-title.png`.
 │   └── fonts/            # Font files
 └── requirements.txt       # Python dependencies
 ```
-
-## Notes
-
-- The script automatically adjusts the font size if the title is too long
-- Background images should be placed in the `assets/background/` directory
-- Custom fonts should be placed in the `assets/fonts/` directory
-- Output files are saved as lossless PNGs
 
 ## License
 
