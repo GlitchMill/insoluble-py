@@ -29,9 +29,13 @@ def generate_title_card(state: EditorState, output_path: str = "output.png"):
         print(f"Background image not found at {bg_path}. Using solid color.")
         image = Image.new('RGBA', (1920, 1080), (0, 0, 139, 255))  # Dark blue fallback
     
-    # Create a working canvas with alpha channel
-    canvas = Image.new('RGBA', image.size)
-    draw = ImageDraw.Draw(canvas)
+    # Create a working canvas with alpha channel for title
+    title_canvas = Image.new('RGBA', image.size)
+    title_draw = ImageDraw.Draw(title_canvas)
+    
+    # Create a separate canvas for subtitles
+    subtitle_canvas = Image.new('RGBA', image.size)
+    subtitle_draw = ImageDraw.Draw(subtitle_canvas)
     
     # Load fonts with anti-aliasing
     try:
@@ -60,7 +64,7 @@ def generate_title_card(state: EditorState, output_path: str = "output.png"):
     
     # Render main title with outline (lossless)
     title = state['text']
-    bbox = draw.textbbox((0, 0), title, font=title_font)
+    bbox = title_draw.textbbox((0, 0), title, font=title_font)
     title_width = bbox[2] - bbox[0]
     title_height = bbox[3] - bbox[1]
     position = (image.width // 2 - title_width // 2, image.height // 2 - title_height // 2)
@@ -72,7 +76,7 @@ def generate_title_card(state: EditorState, output_path: str = "output.png"):
             for y in range(-outline_size, outline_size + 1, max(1, outline_size//3)):
                 if x == 0 and y == 0:
                     continue  # Skip the center position
-                draw.text(
+                title_draw.text(
                     (position[0] + x, position[1] + y),
                     title,
                     fill=outline_color,
@@ -80,8 +84,8 @@ def generate_title_card(state: EditorState, output_path: str = "output.png"):
                     anchor="lt"
                 )
     
-    # Draw main text
-    draw.text(
+    # Draw main text on title canvas
+    title_draw.text(
         position,
         title,
         fill=title_color,
@@ -89,16 +93,16 @@ def generate_title_card(state: EditorState, output_path: str = "output.png"):
         anchor="lt"
     )
     
-    # Draw subtitles if enabled
+    # Draw subtitles if enabled on subtitle canvas
     if state['show_credits']:
         # Small subtitle
         small_sub = state['small_subtitle']
-        small_bbox = draw.textbbox((0, 0), small_sub, font=subtitle_font)
+        small_bbox = subtitle_draw.textbbox((0, 0), small_sub, font=subtitle_font)
         small_width = small_bbox[2] - small_bbox[0]
         small_height = small_bbox[3] - small_bbox[1]
         
-        draw.text(
-            (image.width // 2 - small_width // 2, position[1] + title_height * 0.8),
+        subtitle_draw.text(
+            (image.width // 2 - small_width // 2, position[1] + title_height * 0.8 + 150),
             small_sub,
             fill=(255, 255, 255, 255),  # White with full opacity
             font=subtitle_font,
@@ -107,19 +111,19 @@ def generate_title_card(state: EditorState, output_path: str = "output.png"):
         
         # Main subtitle
         sub = state['subtitle']
-        sub_bbox = draw.textbbox((0, 0), sub, font=subtitle_font)
+        sub_bbox = subtitle_draw.textbbox((0, 0), sub, font=subtitle_font)
         sub_width = sub_bbox[2] - sub_bbox[0]
         
-        draw.text(
-            (image.width // 2 - sub_width // 2, position[1] + title_height * 0.8 + small_height * 1.5),
+        subtitle_draw.text(
+            (image.width // 2 - sub_width // 2, position[1] + title_height * 0.8 + small_height * 1.5 + 150),
             sub,
             fill=(255, 255, 255, 255),  # White with full opacity
             font=subtitle_font,
             anchor="lt"
         )
     
-    # Apply perspective transformation to the text layer only
-    width, height = canvas.size
+    # Apply perspective transformation to the title layer only
+    width, height = title_canvas.size
     # Define the perspective points (bottom wider, top narrower)
     # Original corners
     top_left = (0, 0)
@@ -139,18 +143,21 @@ def generate_title_card(state: EditorState, output_path: str = "output.png"):
         [top_left, top_right, bottom_left, bottom_right]
     )
     
-    # Apply the perspective transform to the text layer
-    canvas = canvas.transform(
-        canvas.size,
+    # Apply the perspective transform to the title layer only
+    title_canvas = title_canvas.transform(
+        title_canvas.size,
         Image.Transform.PERSPECTIVE,
         coeffs,
         Image.Resampling.BICUBIC
     )
     
-    # Composite the text onto the background (lossless operation)
+    # Composite the layers onto the background (lossless operation)
     if image.mode == 'RGB':
         image = image.convert('RGBA')
-    final_image = Image.alpha_composite(image, canvas)
+    # First composite the title
+    final_image = Image.alpha_composite(image, title_canvas)
+    # Then composite the subtitles
+    final_image = Image.alpha_composite(final_image, subtitle_canvas)
     
     # Apply effects in a lossless way when possible
     if state['effect']:
