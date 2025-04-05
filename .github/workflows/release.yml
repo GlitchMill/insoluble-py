@@ -26,16 +26,13 @@ jobs:
 
     - name: Build executable
       run: |
-        mkdir -p dist
         pyinstaller insoluble.spec
 
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
         name: insoluble-${{ matrix.os }}
-        path: |
-          ${{ matrix.os == 'windows-latest' && 'dist/insoluble.exe' || 'dist/insoluble' }}
-        if-no-files-found: error
+        path: dist/
 
   release:
     needs: build
@@ -46,7 +43,20 @@ jobs:
     - name: Download all artifacts
       uses: actions/download-artifact@v3
       with:
-        path: artifacts
+        name: insoluble-ubuntu-latest
+        path: ./artifacts/ubuntu
+
+    - name: Download macOS artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: insoluble-macos-latest
+        path: ./artifacts/macos
+
+    - name: Download Windows artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: insoluble-windows-latest
+        path: ./artifacts/windows
 
     - name: Create Release
       id: create_release
@@ -65,7 +75,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./artifacts/insoluble-ubuntu-latest/insoluble
+        asset_path: ./artifacts/ubuntu/insoluble
         asset_name: insoluble-linux
         asset_content_type: application/octet-stream
 
@@ -75,7 +85,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./artifacts/insoluble-macos-latest/insoluble
+        asset_path: ./artifacts/macos/insoluble
         asset_name: insoluble-macos
         asset_content_type: application/octet-stream
 
@@ -85,6 +95,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./artifacts/insoluble-windows-latest/insoluble.exe
+        asset_path: ./artifacts/windows/insoluble.exe
         asset_name: insoluble-windows.exe
-        asset_content_type: application/octet-stream 
+        asset_content_type: application/octet-stream
