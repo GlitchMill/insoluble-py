@@ -26,13 +26,17 @@ jobs:
 
     - name: Build executable
       run: |
+        mkdir -p dist
         pyinstaller insoluble.spec
 
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
         name: insoluble-${{ matrix.os }}
-        path: dist/
+        path: |
+          dist/insoluble
+          dist/insoluble.exe
+        if-no-files-found: error
 
   release:
     needs: build
