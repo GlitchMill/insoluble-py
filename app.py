@@ -196,7 +196,7 @@ if __name__ == "__main__":
         "background": "url('/background/blue.jpg')",  # Prefer PNG background
         "title_font_size": 300,
         "subtitle_font_size": 30,
-        "outline": 3,
+        "outline": 0,
         "outline_color": "#000000",
         "effect": None,
         "small_subtitle": "BASED ON THE COMIC BOOK BY",
