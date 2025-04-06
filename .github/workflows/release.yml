@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     permissions:
-      contents: read
+      contents: read  # Permissions to read repository content
     strategy:
       matrix:
         os: [ubuntu-latest]
@@ -49,8 +49,7 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     permissions:
-      contents: read  # Add read permissions to access artifacts
-      write: write     # Ensure write permissions for creating the release
+      contents: read  # Permissions to read artifacts and repo content
     steps:
       - uses: actions/checkout@v4
         with:
