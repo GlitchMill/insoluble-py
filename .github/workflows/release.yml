@@ -134,11 +134,11 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          path: dist
+          path: artifacts
 
-      - name: List files in dist
+      - name: List files
         run: |
-          ls -la dist/
+          ls -la artifacts/
 
       - name: Create Release
         id: create_release
@@ -155,8 +155,7 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            dist/insoluble-linux
-            dist/insoluble-macos
-            dist/insoluble-windows.exe
-            README.md
+            artifacts/insoluble-linux
+            artifacts/insoluble-macos
+            artifacts/insoluble-windows.exe
           tag_name: v${{ steps.get_version.outputs.version }}
