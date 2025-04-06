@@ -31,7 +31,7 @@ jobs:
       - name: Build executable
         run: |
           pyinstaller --onefile --name insoluble-linux app.py
-          
+
       - name: Check if file exists before upload
         run: |
           ls -la dist/
@@ -49,7 +49,8 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read  # Add read permissions to access artifacts
+      write: write     # Ensure write permissions for creating the release
     steps:
       - uses: actions/checkout@v4
         with:
@@ -86,5 +87,5 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            artifacts/insoluble-linux
+            artifacts/insoluble-linux  # This should match the artifact path
           tag_name: v${{ steps.get_version.outputs.version }}
