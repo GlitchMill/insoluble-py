@@ -9,3 +9,7 @@ build/
 dist/
 
 !assets/logo.png
+
+!assets/fx/*.png
+
+test-event.json

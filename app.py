@@ -17,7 +17,8 @@ class EditorState(TypedDict):
     effect: Optional[Literal['glitch', 'distort', 'shadow']]
     small_subtitle: str
     subtitle: str
-    evil: bool
+    theme: str
+    blood_level: Optional[int]
 
 def get_asset_path(path: str) -> str:
     """Get the correct path for assets, whether running as script or compiled binary"""
@@ -35,8 +36,11 @@ def generate_title_card(state: EditorState, output_path: str = "output.png"):
     HEIGHT = 1080
     
     # Load background image (lossless PNG)
-    if state.get('evil', False):
-        # Always use solid yellow background in evil mode
+    if state.get('theme') == 'blood':
+        # Blood mode: Almost black background
+        image = Image.new('RGBA', (WIDTH, HEIGHT), (2, 0, 3, 255))  # #020003
+    elif state.get('theme') == 'evil':
+        # Evil mode: Yellow background
         image = Image.new('RGBA', (WIDTH, HEIGHT), (254, 228, 91, 255))  # #fee45b
     else:
         bg_path = get_asset_path(os.path.join('assets', 'background', 'blue.jpg'))  # Prefer PNG background
@@ -50,6 +54,10 @@ def generate_title_card(state: EditorState, output_path: str = "output.png"):
         except FileNotFoundError:
             print(f"Background image not found at {bg_path}. Using solid color.")
             image = Image.new('RGBA', (WIDTH, HEIGHT), (0, 0, 139, 255))  # Dark blue fallback
+    
+    # Ensure image is in RGBA mode
+    if image.mode != 'RGBA':
+        image = image.convert('RGBA')
     
     # Create a working canvas with alpha channel for title
     title_canvas = Image.new('RGBA', (WIDTH, HEIGHT))
@@ -128,7 +136,7 @@ def generate_title_card(state: EditorState, output_path: str = "output.png"):
         subtitle_draw.text(
             (WIDTH // 2 - small_width // 2, position[1] + title_height * 0.8 + 80),
             small_sub,
-            fill=title_color if state.get('evil', False) else (255, 255, 255, 255),  # Use title color in evil mode
+            fill=title_color if state.get('theme') == 'evil' else (255, 255, 255, 255),  # Use title color in evil mode
             font=subtitle_font,
             anchor="lt"
         )
@@ -141,7 +149,7 @@ def generate_title_card(state: EditorState, output_path: str = "output.png"):
         subtitle_draw.text(
             (WIDTH // 2 - sub_width // 2, position[1] + title_height * 0.8 + small_height * 1.5 + 90),
             sub,
-            fill=title_color if state.get('evil', False) else (255, 255, 255, 255),  # Use title color in evil mode
+            fill=title_color if state.get('theme') == 'evil' else (255, 255, 255, 255),  # Use title color in evil mode
             font=subtitle_font,
             anchor="lt"
         )
@@ -182,6 +190,25 @@ def generate_title_card(state: EditorState, output_path: str = "output.png"):
     final_image = Image.alpha_composite(image, title_canvas)
     # Then composite the subtitles
     final_image = Image.alpha_composite(final_image, subtitle_canvas)
+    
+    # Add blood effect overlay if specified (as the final step)
+    blood_level = state.get('blood_level')
+    if blood_level is not None and 1 <= blood_level <= 5:
+        try:
+            fx_path = get_asset_path(os.path.join('assets', 'fx', f'level{blood_level}.png'))
+            overlay = Image.open(fx_path).convert('RGBA')
+            overlay = overlay.resize((WIDTH, HEIGHT), Image.Resampling.LANCZOS)
+            
+            # Create a copy of the original image
+            original_image = final_image.copy()
+            
+            # Create the multiply effect
+            multiply_effect = apply_multiply(original_image, overlay)
+            
+            # Composite the multiply effect on top of the original
+            final_image = Image.alpha_composite(original_image, multiply_effect)
+        except FileNotFoundError:
+            print(f"Blood effect overlay not found at {fx_path}")
     
     # Save as lossless PNG
     final_image.save(output_path, format='PNG', compress_level=0)
@@ -231,6 +258,27 @@ def hex_to_rgba(hex_color: str, alpha: int = 255):
         hex_color = ''.join([c * 2 for c in hex_color])
     return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4)) + (alpha,)
 
+def apply_multiply(background, overlay):
+    """Apply multiply blend mode using direct numpy multiplication"""
+    # Convert images to numpy arrays and normalize to 0-1 range
+    background_arr = np.array(background).astype(float) / 255.0
+    overlay_arr = np.array(overlay).astype(float) / 255.0
+    
+    # Extract alpha channels
+    background_alpha = background_arr[:, :, 3]
+    overlay_alpha = overlay_arr[:, :, 3]
+    
+    # Apply multiply to RGB channels
+    blended = background_arr[:, :, :3] * overlay_arr[:, :, :3]
+    
+    # Combine with alpha channels
+    result = np.zeros_like(background_arr)
+    result[:, :, :3] = blended
+    result[:, :, 3] = overlay_alpha  # Use overlay's alpha
+    
+    # Convert back to 0-255 range and PIL Image
+    return Image.fromarray((result * 255).astype(np.uint8))
+
 def main():
     parser = argparse.ArgumentParser(
         description='Generate a title card with customizable text, colors, and effects.',
@@ -259,8 +307,12 @@ def main():
                       help='Outline color in hex format (e.g., #000000)')
     parser.add_argument('--outline', type=int, default=0,
                       help='Outline size in pixels')
-    parser.add_argument('--evil', action='store_true',
-                      help='Use evil color scheme (yellow background, dark gray text)')
+    
+    # Theme options
+    parser.add_argument('--theme', type=str, choices=['evil', 'blood'],
+                      help='Theme to use for the title card')
+    parser.add_argument('--blood', type=int, choices=range(1, 6), metavar='[1-5]',
+                      help='Add blood effect overlay (1-5)')
     
     # Background options
     parser.add_argument('--background', type=str, default='blue.jpg',
@@ -269,7 +321,7 @@ def main():
     # Output options
     parser.add_argument('--output', type=str,
                       help='Output filename (defaults to TITLE.png)')
-    parser.add_argument('--show-credits', action='store_true',
+    parser.add_argument('--show-credits', '--credits', action='store_true',
                       help='Show subtitle credits')
     
     args = parser.parse_args()
@@ -280,7 +332,7 @@ def main():
     # Convert args to EditorState
     state: EditorState = {
         "text": args.text,
-        "color": "#2f3336" if args.evil else args.color,  # Dark gray for evil mode
+        "color": "#a93238" if args.theme == 'blood' else "#2f3336" if args.theme == 'evil' else args.color,  # Blood red or dark gray or default
         "show_credits": args.show_credits,
         "background": f"url('/background/{args.background}')",
         "title_font_size": args.title_font_size,  # Keep the same font size regardless of mode
@@ -289,7 +341,8 @@ def main():
         "outline_color": args.outline_color,
         "small_subtitle": args.small_subtitle,
         "subtitle": args.subtitle,
-        "evil": args.evil
+        "theme": args.theme,
+        "blood_level": args.blood
     }
     
     # Generate the title card
