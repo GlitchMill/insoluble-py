@@ -136,11 +136,17 @@ jobs:
         with:
           path: dist
 
+      - name: List files in dist
+        run: |
+          ls -la dist/
+
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: Insoluble ${{ steps.get_version.outputs.version }}
+          name: Release v${{ steps.get_version.outputs.version }}
           body: |
             ### Changes
             - Updated blood effect blending
