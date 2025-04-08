@@ -10,7 +10,7 @@ A Python script to generate \[Title Card\] title cards with customizable text, c
 - Optional subtitles with credits
 - Multiple background options
 - Text outline and color customization
-- Special effects (glitch, distort, shadow)
+- Themes (Evil, Blood)
 - Perspective transformation for the main title
 - Lossless PNG output
 
